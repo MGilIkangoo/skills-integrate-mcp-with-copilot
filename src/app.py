@@ -5,11 +5,13 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
+
+from typing import Optional
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -78,9 +80,56 @@ activities = {
 }
 
 
+
 @app.get("/")
 def root():
     return RedirectResponse(url="/static/index.html")
+
+
+# --- CRUD Endpoints for Activities ---
+@app.post("/activities")
+def create_activity(
+    name: str = Body(..., embed=True),
+    description: str = Body(..., embed=True),
+    schedule: str = Body(..., embed=True),
+    max_participants: int = Body(..., embed=True)
+):
+    if name in activities:
+        raise HTTPException(status_code=400, detail="Activity already exists")
+    activities[name] = {
+        "description": description,
+        "schedule": schedule,
+        "max_participants": max_participants,
+        "participants": []
+    }
+    return {"message": f"Activity '{name}' created"}
+
+
+@app.put("/activities/{activity_name}")
+def update_activity(
+    activity_name: str,
+    description: Optional[str] = Body(None, embed=True),
+    schedule: Optional[str] = Body(None, embed=True),
+    max_participants: Optional[int] = Body(None, embed=True)
+):
+    if activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    activity = activities[activity_name]
+    if description is not None:
+        activity["description"] = description
+    if schedule is not None:
+        activity["schedule"] = schedule
+    if max_participants is not None:
+        activity["max_participants"] = max_participants
+    return {"message": f"Activity '{activity_name}' updated"}
+
+
+@app.delete("/activities/{activity_name}")
+def delete_activity(activity_name: str):
+    if activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    del activities[activity_name]
+    return {"message": f"Activity '{activity_name}' deleted"}
 
 
 @app.get("/activities")
